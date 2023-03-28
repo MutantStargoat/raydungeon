@@ -4,3 +4,4 @@
 game
 *.exe
 *.dll
+*.a

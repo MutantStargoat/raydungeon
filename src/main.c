@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <GL/glut.h>
+#include "miniglut.h"
 #include "game.h"
 
 static void idle(void);

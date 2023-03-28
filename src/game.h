@@ -13,9 +13,27 @@ enum {
 	GKEY_INS
 };
 
-extern int game_mx, game_my, game_mstate[3];
-extern int game_win_width, game_win_height;
-extern float game_win_aspect;
+
+struct game_screen {
+	const char *name;
+
+	int (*init)(void);
+	void (*destroy)(void);
+	int (*start)(void);
+	void (*stop)(void);
+	void (*display)(void);
+	void (*reshape)(int, int);
+	void (*keyboard)(int, int);
+	void (*mouse)(int, int, int, int);
+	void (*motion)(int, int);
+};
+
+extern int mouse_x, mouse_y, mouse_state[3];
+extern int win_width, win_height;
+extern float win_aspect;
+
+extern struct game_screen *cur_scr;
+
 
 int game_init(void);
 void game_shutdown(void);
@@ -25,6 +43,8 @@ void game_reshape(int x, int y);
 void game_keyboard(int key, int press);
 void game_mouse(int bn, int st, int x, int y);
 void game_motion(int x, int y);
+
+void game_chscr(struct game_screen *scr);
 
 /* defined in main.c */
 void game_swap_buffers(void);

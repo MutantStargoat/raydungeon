@@ -1,56 +1,131 @@
+#include <stdlib.h>
+#include <string.h>
 #include <GL/gl.h>
 #include "game.h"
 
-int game_mx, game_my, game_mstate[3];
-int game_win_width, game_win_height;
-float game_win_aspect;
+int mouse_x, mouse_y, mouse_state[3];
+int win_width, win_height;
+float win_aspect;
+
+struct game_screen *cur_scr;
+
+/* available screens */
+extern struct game_screen scr_menu, scr_game, scr_map;
+#define MAX_SCREENS	4
+static struct game_screen *screens[MAX_SCREENS];
+static int num_screens;
+
 
 int game_init(void)
 {
+	int i;
+	char *start_scr_name;
+
+	/* initialize screens */
+	screens[num_screens++] = &scr_menu;
+	screens[num_screens++] = &scr_game;
+	screens[num_screens++] = &scr_map;
+
+	start_scr_name = getenv("START_SCREEN");
+
+	for(i=0; i<num_screens; i++) {
+		if(screens[i]->init() == -1) {
+			return -1;
+		}
+		if(screens[i]->name && start_scr_name && strcmp(screens[i]->name, start_scr_name) == 0) {
+			game_chscr(screens[i]);
+		}
+	}
+	if(!cur_scr) {
+		game_chscr(&scr_game);	/* TODO: scr_menu */
+	}
+
 	glClearColor(0.3, 0.3, 0.3, 1);
 	return 0;
 }
 
 void game_shutdown(void)
 {
+	int i;
+
+	for(i=0; i<num_screens; i++) {
+		if(screens[i]->destroy) {
+			screens[i]->destroy();
+		}
+	}
 }
 
 void game_display(void)
 {
 	glClear(GL_COLOR_BUFFER_BIT);
+
+	if(cur_scr) {
+		cur_scr->display();
+	}
+
 	game_swap_buffers();
 }
 
 void game_reshape(int x, int y)
 {
-	game_win_width = x;
-	game_win_height = y;
-	game_win_aspect = (float) x / y;
+	win_width = x;
+	win_height = y;
+	win_aspect = (float)x / (float)y;
 	glViewport(0, 0, x, y);
+
+	if(cur_scr && cur_scr->reshape) {
+		cur_scr->reshape(x, y);
+	}
 }
 
 void game_keyboard(int key, int press)
 {
-	if(!press) return;
+	if(press) {
+		switch(key) {
+		case 27:
+			game_quit();
+			break;
+		}
+	}
 
-	switch(key) {
-	case 27:
-		game_quit();
-		break;
+	if(cur_scr && cur_scr->keyboard) {
+		cur_scr->keyboard(key, press);
 	}
 }
 
 void game_mouse(int bn, int st, int x, int y)
 {
-	game_mx = x;
-	game_my = y;
+	mouse_x = x;
+	mouse_y = y;
 	if(bn < 3) {
-		game_mstate[bn] = st;
+		mouse_state[bn] = st;
+	}
+
+	if(cur_scr && cur_scr->mouse) {
+		cur_scr->mouse(bn, st, x, y);
 	}
 }
 
 void game_motion(int x, int y)
 {
-	game_mx = x;
-	game_my = y;
+	mouse_x = x;
+	mouse_y = y;
+
+	if(cur_scr && cur_scr->motion) {
+		cur_scr->motion(x, y);
+	}
+}
+
+void game_chscr(struct game_screen *scr)
+{
+	if(!scr) return;
+
+	if(scr->start && scr->start() == -1) {
+		return;
+	}
+
+	if(cur_scr && cur_scr->stop) {
+		cur_scr->stop();
+	}
+	cur_scr = scr;
 }
