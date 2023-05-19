@@ -1,9 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <GL/gl.h>
+#include "opengl.h"
 #include "cgmath/cgmath.h"
 #include "game.h"
+#include "sdr.h"
 #include "level.h"
 #include "util.h"
 
@@ -32,14 +33,20 @@ static float proj_mat[16], view_mat[16];
 static float cam_theta, cam_phi = 20, cam_dist = 10;
 static cgm_vec3 cam_pan;
 
+static unsigned int sdr;
+
 
 static int ginit(void)
 {
+	if(!(sdr = create_program_load("sdr/raydungeon.v.glsl", "sdr/raydungeon.p.glsl"))) {
+		return -1;
+	}
 	return 0;
 }
 
 static void gdestroy(void)
 {
+	free_program(sdr);
 }
 
 static int gstart(void)
@@ -75,6 +82,19 @@ static void gdisplay(void)
 	cgm_mpretranslate(view_mat, cam_pan.x, cam_pan.y, cam_pan.z);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadMatrixf(view_mat);
+
+	glUseProgram(sdr);
+
+	glDepthMask(0);
+	glBegin(GL_TRIANGLES);
+	glTexCoord2f(0, 0); glVertex2f(-1, -1);
+	glTexCoord2f(2, 0); glVertex2f(4, -1);
+	glTexCoord2f(0, 2); glVertex2f(-1, 4);
+	glEnd();
+	glDepthMask(1);
+
+	glUseProgram(0);
+
 
 	cell = lvl->cells;
 	glBegin(GL_QUADS);

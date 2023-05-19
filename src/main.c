@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include "opengl.h"
 #include "miniglut.h"
 #include "game.h"
 
@@ -48,6 +49,10 @@ int main(int argc, char **argv)
 	glutMouseFunc(mouse);
 	glutMotionFunc(motion);
 	glutPassiveMotionFunc(motion);
+
+	if(init_opengl() == -1) {
+		return 1;
+	}
 
 #if defined(__unix__) || defined(unix)
 	xdpy = glXGetCurrentDisplay();
