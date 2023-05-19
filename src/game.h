@@ -1,6 +1,8 @@
 #ifndef GAME_H_
 #define GAME_H_
 
+#define GAME_CFG_FILE	"game.cfg"
+
 enum {
 	GKEY_ESC	= 27,
 	GKEY_DEL	= 127,
@@ -11,6 +13,12 @@ enum {
 	GKEY_PGUP, GKEY_PGDOWN,
 	GKEY_HOME, GKEY_END,
 	GKEY_INS
+};
+
+enum {
+	GKEY_MOD_SHIFT	= 1,
+	GKEY_MOD_CTRL	= 4,
+	GKEY_MOD_ALT	= 8
 };
 
 
@@ -29,13 +37,17 @@ struct game_screen {
 };
 
 extern int mouse_x, mouse_y, mouse_state[3];
+extern int mouse_grabbed;
+extern unsigned int modkeys;
 extern int win_width, win_height;
 extern float win_aspect;
+extern int fullscr;
 
+extern long time_msec;
 extern struct game_screen *cur_scr;
 
 
-int game_init(void);
+int game_init(int argc, char **argv);
 void game_shutdown(void);
 
 void game_display(void);
@@ -47,7 +59,12 @@ void game_motion(int x, int y);
 void game_chscr(struct game_screen *scr);
 
 /* defined in main.c */
+long game_getmsec(void);
 void game_swap_buffers(void);
 void game_quit(void);
+void game_resize(int x, int y);
+void game_fullscreen(int fs);
+void game_grabmouse(int grab);
+void game_vsync(int vsync);
 
 #endif	/* GAME_H_ */

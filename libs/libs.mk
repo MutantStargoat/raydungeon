@@ -1,13 +1,13 @@
 # included from a makefile which defines libname, src
 
 obj = $(src:.c=.o)
-lib = $(libname).a
+lib = ../unix/lib$(libname).a
 
-CFLAGS = -pedantic -Wall -g
+CFLAGS = -O3 $(inc) $(def)
 
 ifeq ($(sys), mingw)
 	obj = $(src:.c=.w32.o)
-	lib = $(libname).w32.a
+	lib = ../w32/lib$(libname).a
 endif
 
 $(lib): $(obj)

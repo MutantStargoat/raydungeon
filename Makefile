@@ -7,11 +7,11 @@ warn = -pedantic -Wall
 dbg = -g
 def = -DMINIGLUT_USE_LIBC
 
-inc = -Ilibs/assfile
-liblist = libs/assfile/assfile.a
+inc = -Ilibs -Ilibs/assfile -Ilibs/treestor/include
+libs = -lassfile -ldrawtext -lgoat3d -limago -ltreestor
 
 CFLAGS = $(warn) $(opt) $(dbg) $(inc) $(def) -MMD
-LDFLAGS = $(syslib) $(libgl) $(libs) -lm
+LDFLAGS = $(libdir) $(syslib) $(libgl) $(libs) -lm
 
 sys := $(shell uname -s | sed 's/MINGW.*/mingw/')
 ifeq ($(sys), mingw)
@@ -21,10 +21,12 @@ ifeq ($(sys), mingw)
 	obj = $(src:.c=.w32.o)
 	dep = $(src:.c=.w32.d)
 	bin = game.exe
-	libs = $(liblist:.a=.w32.a)
+
+	libdir = -Llibs/w32
 else
 	libgl = -lGL -lGLU -lX11
-	libs = $(liblist)
+
+	libdir = -Llibs/unix
 endif
 
 $(bin): $(obj) libs
@@ -37,11 +39,11 @@ $(bin): $(obj) libs
 
 .PHONY: libs
 libs:
-	$(MAKE) -C libs/assfile
+	$(MAKE) -C libs
 
 .PHONY: clean-libs
 clean-libs:
-	$(MAKE) -C libs/assfile clean
+	$(MAKE) -C libs clean
 
 .PHONY: clean
 clean:
