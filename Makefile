@@ -1,13 +1,13 @@
-src = $(wildcard src/*.c)
+src = $(wildcard src/*.c) libs/glew/glew.c
 obj = $(src:.c=.o)
 dep = $(src:.c=.d)
 bin = game
 
 warn = -pedantic -Wall
 dbg = -g
-def = -DMINIGLUT_USE_LIBC
+def = -DMINIGLUT_USE_LIBC -DGLEW_STATIC
 
-inc = -Ilibs -Ilibs/assfile -Ilibs/treestor/include
+inc = -Ilibs -Ilibs/assfile -Ilibs/treestor/include -Ilibs/glew
 libs = -lassfile -ldrawtext -lgoat3d -limago -ltreestor
 
 CFLAGS = $(warn) $(opt) $(dbg) $(inc) $(def) -MMD
@@ -24,7 +24,7 @@ ifeq ($(sys), mingw)
 
 	libdir = -Llibs/w32
 else
-	libgl = -lGL -lGLU -lX11
+	libgl = -lGL -lX11
 
 	libdir = -Llibs/unix
 endif

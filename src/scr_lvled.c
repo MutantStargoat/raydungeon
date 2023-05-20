@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <GL/gl.h>
+#include "cgmath/cgmath.h"
 #include "game.h"
 #include "level.h"
 #include "util.h"
@@ -64,6 +65,8 @@ static void display(void)
 	struct level_cell *cell;
 	struct level_rect *rect;
 
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	glTranslatef(0, 0, -cam_dist);
@@ -113,6 +116,11 @@ static void display(void)
 
 static void reshape(int x, int y)
 {
+	float proj_mat[16];
+
+	cgm_mperspective(proj_mat, cgm_deg_to_rad(60), win_aspect, 0.5, 40.0);
+	glMatrixMode(GL_PROJECTION);
+	glLoadMatrixf(proj_mat);
 }
 
 static void keyb(int key, int press)

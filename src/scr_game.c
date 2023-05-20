@@ -35,18 +35,13 @@ static cgm_vec3 cam_pan;
 
 static unsigned int sdr;
 
-
 static int ginit(void)
 {
-	if(!(sdr = create_program_load("sdr/raydungeon.v.glsl", "sdr/raydungeon.p.glsl"))) {
-		return -1;
-	}
 	return 0;
 }
 
 static void gdestroy(void)
 {
-	free_program(sdr);
 }
 
 static int gstart(void)
@@ -59,6 +54,19 @@ static int gstart(void)
 	cam_pan.x = -(lvl->xsz / 2.0f) * lvl->scale;
 	cam_pan.y = 0;
 	cam_pan.z = -(lvl->ysz / 2.0f) * lvl->scale;
+
+	glEnable(GL_DEPTH_TEST);
+
+	if(lvl->sdf_src) {
+		add_shader_footer(GL_FRAGMENT_SHADER, lvl->sdf_src);
+	} else {
+		add_shader_footer(GL_FRAGMENT_SHADER, "float eval_sdf(in vec3 p) { return 10000.0; }\n");
+	}
+	if(!(sdr = create_program_load("sdr/raydungeon.v.glsl", "sdr/raydungeon.p.glsl"))) {
+		return -1;
+	}
+	clear_shader_footer(GL_FRAGMENT_SHADER);
+	glUseProgram(sdr);
 	return 0;
 }
 
@@ -66,6 +74,8 @@ static void gstop(void)
 {
 	destroy_level(lvl);
 	free(lvl);
+
+	free_program(sdr);
 }
 
 static void gdisplay(void)
@@ -85,13 +95,11 @@ static void gdisplay(void)
 
 	glUseProgram(sdr);
 
-	glDepthMask(0);
 	glBegin(GL_TRIANGLES);
 	glTexCoord2f(0, 0); glVertex2f(-1, -1);
-	glTexCoord2f(2, 0); glVertex2f(4, -1);
-	glTexCoord2f(0, 2); glVertex2f(-1, 4);
+	glTexCoord2f(2, 0); glVertex2f(3, -1);
+	glTexCoord2f(0, 2); glVertex2f(-1, 3);
 	glEnd();
-	glDepthMask(1);
 
 	glUseProgram(0);
 
@@ -118,7 +126,7 @@ static void gdisplay(void)
 
 static void greshape(int x, int y)
 {
-	cgm_mperspective(proj_mat, cgm_deg_to_rad(60), win_aspect, 0.5, 500.0);
+	cgm_mperspective(proj_mat, cgm_deg_to_rad(60), win_aspect, 0.5, 40.0);
 	glMatrixMode(GL_PROJECTION);
 	glLoadMatrixf(proj_mat);
 }

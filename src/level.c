@@ -180,6 +180,29 @@ int save_level(const struct level *lvl, const char *fname)
 			rect++;
 		}
 		fprintf(fp, "RECTEND\n\n");
+
+
+		fprintf(fp, "SDRSTART\n");
+		fprintf(fp, "float eval_sdf(in vec3 p)\n");
+		fprintf(fp, "{\n");
+		rect = lvl->rects;
+		for(i=0; i<num; i++) {
+			float cx = (rect->x - 0.5f + rect->w * 0.5f) * lvl->scale;
+			float cy = (rect->y - 0.5f + rect->h * 0.5f) * lvl->scale;
+			float rx = (rect->w + 0.1f) * lvl->scale * 0.5f;
+			float ry = (rect->h + 0.1f) * lvl->scale * 0.5f;
+
+			if(i == 0) {
+				fprintf(fp, "\tfloat d = boxdist(p - vec3(%f, 0.0, %f), vec3(%f, 1.0, %f));\n",
+						cx, cy, rx, ry);
+			} else {
+				fprintf(fp, "\td = min(d, boxdist(p - vec3(%f, 0.0, %f), vec3(%f, 1.0, %f)));\n",
+						cx, cy, rx, ry);
+			}
+			rect++;
+		}
+		fprintf(fp, "\treturn d;\n}\n");
+		fprintf(fp, "SDREND\n\n");
 	}
 
 	fclose(fp);
@@ -200,6 +223,13 @@ static char *clean_line(char *s)
 	return *s ? s : 0;
 }
 
+enum {
+	ST_HEADER,
+	ST_ASSIGN,
+	ST_MAP,
+	ST_SDR
+};
+
 int load_level(struct level *lvl, const char *fname)
 {
 	ass_file *fp;
@@ -209,6 +239,7 @@ int load_level(struct level *lvl, const char *fname)
 	int state = 0;
 	int i, nrow;
 	struct level_rect rect;
+	char *sdr = 0;
 
 	if(!(fp = ass_fopen(fname, "rb"))) {
 		fprintf(stderr, "load_level: failed to open: %s\n", fname);
@@ -217,16 +248,16 @@ int load_level(struct level *lvl, const char *fname)
 
 	while(ass_fgets(buf, sizeof buf, fp)) {
 		switch(state) {
-		case 0:
+		case ST_HEADER:
 			if(memcmp(buf, "RDLEVEL", 7) != 0) {
 				fprintf(stderr, "load_level: invalid level file: %s\n", fname);
 				ass_fclose(fp);
 				return -1;
 			}
-			state++;
+			state = ST_ASSIGN;
 			break;
 
-		case 1:
+		case ST_ASSIGN:
 			if(!(line = clean_line(buf)) || *line == '#') {
 				continue;
 			}
@@ -267,7 +298,15 @@ int load_level(struct level *lvl, const char *fname)
 
 				lvl->cells = calloc_nf(lvl->xsz * lvl->ysz, sizeof *lvl->cells);
 				nrow = 0;
-				state++;
+				state = ST_MAP;
+
+			} else if(strcmp(line, "SDRSTART") == 0) {
+				if(sdr) {
+					darr_clear(sdr);
+				} else {
+					sdr = darr_alloc(0, 1);
+				}
+				state = ST_SDR;
 
 			} else if(sscanf(line, "rect %d %d %d %d", &rect.x, &rect.y, &rect.w, &rect.h) == 4) {
 				rect.dbgcol[0] = (rand() & 0x7f) + 0x7f;
@@ -278,9 +317,9 @@ int load_level(struct level *lvl, const char *fname)
 			}
 			break;
 
-		case 2:
+		case ST_MAP:
 			if(memcmp(buf, "MAPEND", 6) == 0) {
-				state = 1;
+				state = ST_ASSIGN;
 				break;
 			}
 			for(i=0; i<lvl->xsz; i++) {
@@ -288,11 +327,25 @@ int load_level(struct level *lvl, const char *fname)
 				parse_cell(lvl, i, nrow, buf[i]);
 			}
 			if(++nrow >= lvl->ysz) {
-				state = 1;
+				state = ST_ASSIGN;
 				break;
 			}
 			break;
+
+		case ST_SDR:
+			if(memcmp(buf, "SDREND", 6) == 0) {
+				state = ST_ASSIGN;
+				break;
+			}
+			for(i=0; buf[i]; i++) {
+				darr_strpush(sdr, buf[i]);
+			}
+			break;
 		}
+	}
+
+	if(sdr) {
+		lvl->sdf_src = darr_finalize(sdr);
 	}
 
 	ass_fclose(fp);

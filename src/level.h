@@ -24,6 +24,8 @@ struct level {
 	int sx, sy;
 
 	struct level_rect *rects;	/* darr, empty spaces */
+
+	char *sdf_src;
 };
 
 void init_level(struct level *lvl);

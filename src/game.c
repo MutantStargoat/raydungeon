@@ -15,6 +15,7 @@ int fullscr;
 long time_msec;
 
 struct game_screen *cur_scr;
+char *start_scr_name;
 
 /* available screens */
 extern struct game_screen scr_menu, scr_game, scr_map, scr_lvled;
@@ -26,7 +27,7 @@ static int num_screens;
 int game_init(int argc, char **argv)
 {
 	int i;
-	char *start_scr_name;
+	char *env;
 
 	load_options(GAME_CFG_FILE);
 	if(parse_options(argc, argv) == -1) {
@@ -44,7 +45,9 @@ int game_init(int argc, char **argv)
 	screens[num_screens++] = &scr_map;
 	screens[num_screens++] = &scr_lvled;
 
-	start_scr_name = getenv("START_SCREEN");
+	if((env = getenv("START_SCREEN"))) {
+		start_scr_name = env;
+	}
 
 	for(i=0; i<num_screens; i++) {
 		if(screens[i]->init() == -1) {

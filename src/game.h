@@ -45,6 +45,7 @@ extern int fullscr;
 
 extern long time_msec;
 extern struct game_screen *cur_scr;
+extern char *start_scr_name;
 
 
 int game_init(int argc, char **argv);

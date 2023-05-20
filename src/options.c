@@ -3,6 +3,7 @@
 #include <string.h>
 #include <errno.h>
 #include "options.h"
+#include "game.h"
 #include "treestor.h"
 
 #define DEF_XRES		1280
@@ -40,6 +41,8 @@ int parse_options(int argc, char **argv)
 					fprintf(stderr, "%s must be followed by a screen name\n", argv[i - 1]);
 					return -1;
 				}
+				start_scr_name = argv[i];
+
 			} else if(strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "-help") == 0) {
 				printf(usage_fmt, argv[0]);
 				exit(0);
