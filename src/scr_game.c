@@ -7,6 +7,7 @@
 #include "sdr.h"
 #include "level.h"
 #include "util.h"
+#include "options.h"
 
 static int ginit(void);
 static void gdestroy(void);
@@ -30,10 +31,14 @@ static struct level *lvl;
 
 static float proj_mat[16], view_mat[16];
 
-static float cam_theta, cam_phi = 20, cam_dist = 10;
+static float cam_theta, cam_phi, cam_dist;
 static cgm_vec3 cam_pan;
 
 static unsigned int sdr;
+
+static int rbuf_width, rbuf_height;
+static unsigned int fbo, rbuf_col, rbuf_zbuf;
+
 
 static int ginit(void)
 {
@@ -42,6 +47,9 @@ static int ginit(void)
 
 static void gdestroy(void)
 {
+	glDeleteRenderbuffers(1, &rbuf_col);
+	glDeleteRenderbuffers(1, &rbuf_zbuf);
+	glDeleteFramebuffers(1, &fbo);
 }
 
 static int gstart(void)
@@ -51,16 +59,16 @@ static int gstart(void)
 	if(load_level(lvl, "data/test.lvl") == -1) {
 		return -1;
 	}
-	cam_pan.x = -(lvl->xsz / 2.0f) * lvl->scale;
+	cam_pan.x = -lvl->sx * lvl->scale;
 	cam_pan.y = 0;
-	cam_pan.z = -(lvl->ysz / 2.0f) * lvl->scale;
+	cam_pan.z = -lvl->sy * lvl->scale;
 
 	glEnable(GL_DEPTH_TEST);
 
 	if(lvl->sdf_src) {
 		add_shader_footer(GL_FRAGMENT_SHADER, lvl->sdf_src);
 	} else {
-		add_shader_footer(GL_FRAGMENT_SHADER, "float eval_sdf(in vec3 p) { return 10000.0; }\n");
+		add_shader_header(GL_FRAGMENT_SHADER, "#define TEST_SDF\n");
 	}
 	if(!(sdr = create_program_load("sdr/raydungeon.v.glsl", "sdr/raydungeon.p.glsl"))) {
 		return -1;
@@ -83,6 +91,9 @@ static void gdisplay(void)
 	int i, j;
 	float x, y;
 	struct level_cell *cell;
+
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+	glViewport(0, 0, rbuf_width, rbuf_height);
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -113,22 +124,56 @@ static void gdisplay(void)
 		for(j=0; j<lvl->xsz; j++) {
 			x = (float)j * lvl->scale;
 			if(cell->type) {
-				glVertex3f(x - 0.48, -1, y - 0.48);
-				glVertex3f(x + 0.48, -1, y - 0.48);
-				glVertex3f(x + 0.48, -1, y + 0.48);
-				glVertex3f(x - 0.48, -1, y + 0.48);
+				glVertex3f(x - 0.48 * lvl->scale, -1, y - 0.48 * lvl->scale);
+				glVertex3f(x + 0.48 * lvl->scale, -1, y - 0.48 * lvl->scale);
+				glVertex3f(x + 0.48 * lvl->scale, -1, y + 0.48 * lvl->scale);
+				glVertex3f(x - 0.48 * lvl->scale, -1, y + 0.48 * lvl->scale);
 			}
 			cell++;
 		}
 	}
 	glEnd();
+
+	glViewport(0, 0, win_width, win_height);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBlitFramebuffer(0, 0, rbuf_width, rbuf_height, 0, 0, win_width, win_height,
+			GL_COLOR_BUFFER_BIT, GL_NEAREST);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 static void greshape(int x, int y)
 {
-	cgm_mperspective(proj_mat, cgm_deg_to_rad(60), win_aspect, 0.5, 40.0);
+	cgm_mperspective(proj_mat, cgm_deg_to_rad(60), win_aspect, 0.5, 200.0);
 	glMatrixMode(GL_PROJECTION);
 	glLoadMatrixf(proj_mat);
+
+	rbuf_width = ((int)(x * opt.gfx.render_res) + 3) & 0xfffffc;
+	rbuf_height = ((int)(y * opt.gfx.render_res) + 3) & 0xfffffc;
+	printf("render buffer %dx%d\n", rbuf_width, rbuf_height);
+
+	if(!fbo) {
+		glGenFramebuffers(1, &fbo);
+		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+		glGenRenderbuffers(1, &rbuf_col);
+		glBindRenderbuffer(GL_RENDERBUFFER, rbuf_col);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_RGB, rbuf_width, rbuf_height);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rbuf_col);
+
+		glGenRenderbuffers(1, &rbuf_zbuf);
+		glBindRenderbuffer(GL_RENDERBUFFER, rbuf_zbuf);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, rbuf_width, rbuf_height);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbuf_zbuf);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	} else {
+		glBindRenderbuffer(GL_RENDERBUFFER, rbuf_col);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_RGB, rbuf_width, rbuf_height);
+
+		glBindRenderbuffer(GL_RENDERBUFFER, rbuf_zbuf);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, rbuf_width, rbuf_height);
+	}
 }
 
 static void gkeyb(int key, int press)

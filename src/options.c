@@ -7,7 +7,7 @@
 #include "treestor.h"
 
 #define DEF_XRES		1280
-#define DEF_YRES		800
+#define DEF_YRES		720
 #define DEF_VSYNC		1
 #define DEF_VOL			255
 #define DEF_MUS			1
@@ -15,6 +15,7 @@
 #define DEF_INVMOUSEY	0
 #define DEF_MOUSE_SPEED	50
 
+#define DEF_GFX_RENDRES	1
 
 struct options opt = {
 	DEF_XRES, DEF_YRES,
@@ -24,6 +25,8 @@ struct options opt = {
 	DEF_MUS,
 	DEF_INVMOUSEY,
 	DEF_MOUSE_SPEED,
+
+	{ DEF_GFX_RENDRES }
 };
 
 int parse_options(int argc, char **argv)
@@ -81,6 +84,8 @@ int load_options(const char *fname)
 	opt.inv_mouse_y = ts_lookup_int(cfg, "options.controls.invmousey", DEF_INVMOUSEY);
 	opt.mouse_speed = ts_lookup_int(cfg, "options.controls.mousespeed", DEF_MOUSE_SPEED);
 
+	opt.gfx.render_res = ts_lookup_num(cfg, "options.gfx.render_res", DEF_GFX_RENDRES);
+
 	ts_free_tree(cfg);
 	return 0;
 }
@@ -88,29 +93,37 @@ int load_options(const char *fname)
 #define WROPT(lvl, fmt, val, defval) \
 	do { \
 		int i; \
+		if((val) == (defval)) fputc('#', fp); \
 		for(i=0; i<lvl; i++) fputc('\t', fp); \
-		if((val) == (defval)) { \
-			fprintf(fp, fmt "\t# default\n", val); \
-		} else { \
-			fprintf(fp, fmt "\n", val); \
-		} \
+		fprintf(fp, fmt "\n", val); \
 	} while(0)
 
 int save_options(const char *fname)
 {
 	FILE *fp;
+	static const char *hdr = "# Game options\n# ------------\n"
+		"# Lines starting with '#' are comments. Options set to their default value are\n"
+		"# automatically commented when this file is written. If you want to change some\n"
+		"# option, make sure to remove the '#' from the beginning of the line, or your\n"
+		"# change will have no effect.\n";
+
 
 	printf("writing config: %s\n", fname);
 
 	if(!(fp = fopen(fname, "wb"))) {
 		fprintf(stderr, "failed to save options (%s): %s\n", fname, strerror(errno));
 	}
+	fprintf(fp, "%s\n", hdr);
 	fprintf(fp, "options {\n");
 	fprintf(fp, "\tvideo {\n");
 	WROPT(2, "xres = %d", opt.xres, DEF_XRES);
 	WROPT(2, "yres = %d", opt.yres, DEF_YRES);
 	WROPT(2, "vsync = %d", opt.vsync, DEF_VSYNC);
 	WROPT(2, "fullscreen = %d", opt.fullscreen, DEF_FULLSCR);
+	fprintf(fp, "\t}\n");
+
+	fprintf(fp, "\tgfx {\n");
+	WROPT(2, "render_res = %f", opt.gfx.render_res, DEF_GFX_RENDRES);
 	fprintf(fp, "\t}\n");
 
 	fprintf(fp, "\taudio {\n");

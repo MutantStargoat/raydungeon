@@ -38,7 +38,7 @@ static int grow_rect(struct level *lvl, struct level_cell *orgcell, struct level
 	/* try expanding horizontally first */
 	cell = orgcell + 1;
 	x = ra.x + 1;
-	while(x < lvl->xsz && cell->type != CELL_SOLID) {
+	while(x++ < lvl->xsz && cell->type == CELL_SOLID) {
 		ra.w++;
 		cell++;
 	}
@@ -48,7 +48,7 @@ static int grow_rect(struct level *lvl, struct level_cell *orgcell, struct level
 	while(y++ < lvl->ysz) {
 		int rowsz = 0;
 		x = ra.x;
-		while(x++ < lvl->xsz && cell->type != CELL_SOLID) {
+		while(x++ < lvl->xsz && cell->type == CELL_SOLID) {
 			rowsz++;
 			cell++;
 		}
@@ -60,7 +60,7 @@ static int grow_rect(struct level *lvl, struct level_cell *orgcell, struct level
 	/* then try the same thing, but vertical first */
 	cell = orgcell + lvl->xsz;
 	y = rb.y + 1;
-	while(y++ < lvl->ysz && cell->type != CELL_SOLID) {
+	while(y++ < lvl->ysz && cell->type == CELL_SOLID) {
 		rb.h++;
 		cell += lvl->xsz;
 	}
@@ -70,7 +70,7 @@ static int grow_rect(struct level *lvl, struct level_cell *orgcell, struct level
 		int colsz = 0;
 		y = rb.y;
 		cell = lvl->cells + y * lvl->xsz + x;
-		while(y++ < lvl->ysz && cell->type != CELL_SOLID) {
+		while(y++ < lvl->ysz && cell->type == CELL_SOLID) {
 			colsz++;
 			cell += lvl->xsz;
 		}
@@ -113,7 +113,7 @@ void lvl_gen_rects(struct level *lvl)
 	cell = lvl->cells;
 	for(i=0; i<lvl->ysz; i++) {
 		for(j=0; j<lvl->xsz; j++) {
-			if(cell->type != CELL_SOLID && !cell->visited) {
+			if(cell->type == CELL_SOLID && !cell->visited) {
 				rect.x = j;
 				rect.y = i;
 				rect.w = rect.h = 1;
@@ -183,7 +183,7 @@ int save_level(const struct level *lvl, const char *fname)
 
 
 		fprintf(fp, "SDRSTART\n");
-		fprintf(fp, "float eval_sdf(in vec3 p)\n");
+		fprintf(fp, "float eval_sdf_gen(in vec3 p)\n");
 		fprintf(fp, "{\n");
 		rect = lvl->rects;
 		for(i=0; i<num; i++) {

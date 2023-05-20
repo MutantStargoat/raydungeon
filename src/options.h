@@ -2,7 +2,7 @@
 #define OPTIONS_H_
 
 struct gfxoptions {
-	int foo;
+	float render_res;	/* 0.5 means render at half-res and scale by 2 */
 };
 
 struct options {

@@ -118,7 +118,7 @@ static void reshape(int x, int y)
 {
 	float proj_mat[16];
 
-	cgm_mperspective(proj_mat, cgm_deg_to_rad(60), win_aspect, 0.5, 40.0);
+	cgm_mperspective(proj_mat, cgm_deg_to_rad(60), win_aspect, 0.5, 500.0);
 	glMatrixMode(GL_PROJECTION);
 	glLoadMatrixf(proj_mat);
 }

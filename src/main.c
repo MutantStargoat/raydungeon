@@ -35,7 +35,7 @@ static PROC wgl_swap_interval_ext;
 int main(int argc, char **argv)
 {
 	glutInit(&argc, argv);
-	glutInitWindowSize(1280, 800);
+	glutInitWindowSize(1280, 720);
 	glutInitDisplayMode(GLUT_RGB | GLUT_DEPTH | GLUT_DOUBLE);
 	glutCreateWindow("raydungeon");
 
