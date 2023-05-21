@@ -8,6 +8,8 @@
 #include "level.h"
 #include "util.h"
 #include "options.h"
+#include "player.h"
+#include "input.h"
 
 static int ginit(void);
 static void gdestroy(void);
@@ -31,8 +33,8 @@ static struct level *lvl;
 
 static float proj_mat[16], view_mat[16];
 
-static float cam_theta, cam_phi, cam_dist;
-static cgm_vec3 cam_pan;
+static struct player player;
+static float cam_dist;
 
 static unsigned int sdr;
 
@@ -54,14 +56,17 @@ static void gdestroy(void)
 
 static int gstart(void)
 {
+	init_player(&player);
+	init_input();
+
 	lvl = malloc_nf(sizeof *lvl);
 	init_level(lvl);
 	if(load_level(lvl, "data/test.lvl") == -1) {
 		return -1;
 	}
-	cam_pan.x = -lvl->sx * lvl->scale;
-	cam_pan.y = 0;
-	cam_pan.z = -lvl->sy * lvl->scale;
+	player.pos.x = -lvl->sx * lvl->scale;
+	player.pos.y = 0;
+	player.pos.z = -lvl->sy * lvl->scale;
 
 	glEnable(GL_DEPTH_TEST);
 
@@ -86,11 +91,46 @@ static void gstop(void)
 	free_program(sdr);
 }
 
+#define KB_MOVE_SPEED	0.5f
+
+static void update(void)
+{
+	if(inpstate & INP_MOVE_BITS) {
+		if(inpstate & INP_FWD_BIT) {
+			player.vel.z -= KB_MOVE_SPEED;
+		}
+		if(inpstate & INP_BACK_BIT) {
+			player.vel.z += KB_MOVE_SPEED;
+		}
+		if(inpstate & INP_SRIGHT_BIT) {
+			player.vel.x += KB_MOVE_SPEED;
+		}
+		if(inpstate & INP_SLEFT_BIT) {
+			player.vel.x -= KB_MOVE_SPEED;
+		}
+	}
+
+	update_player(&player);
+	calc_player_matrix(&player);
+}
+
 static void gdisplay(void)
 {
 	int i, j;
 	float x, y;
 	struct level_cell *cell;
+	static long last_upd;
+	static float upd_acc;
+
+	upd_acc += (time_msec - last_upd) / 1000.0f;
+	for(i=0; i<MAX_UPD; i++) {
+		if(upd_acc < UPD_TSTEP) break;
+		upd_acc -= UPD_TSTEP;
+		update();
+	}
+	if(i > 0) {
+		last_upd = time_msec;
+	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 	glViewport(0, 0, rbuf_width, rbuf_height);
@@ -98,9 +138,9 @@ static void gdisplay(void)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	cgm_mtranslation(view_mat, 0, 0, -cam_dist);
-	cgm_mprerotate_x(view_mat, cam_phi);
-	cgm_mprerotate_y(view_mat, cam_theta);
-	cgm_mpretranslate(view_mat, cam_pan.x, cam_pan.y, cam_pan.z);
+	cgm_mprerotate_x(view_mat, player.phi);
+	cgm_mprerotate_y(view_mat, player.theta);
+	cgm_mpretranslate(view_mat, player.pos.x, player.pos.y, player.pos.z);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadMatrixf(view_mat);
 
@@ -204,24 +244,24 @@ static void gmotion(int x, int y)
 	if(!(dx | dy)) return;
 
 	if(mouse_state[0]) {
-		cam_theta += dx * 0.02;
-		cam_phi += dy * 0.02;
-		if(cam_phi < -M_PI/2) cam_phi = -M_PI/2;
-		if(cam_phi > M_PI/2) cam_phi = M_PI/2;
+		player.theta += dx * 0.02;
+		player.phi += dy * 0.02;
+		if(player.phi < -M_PI/2) player.phi = -M_PI/2;
+		if(player.phi > M_PI/2) player.phi = M_PI/2;
 	}
 	if(mouse_state[1]) {
 		float up[3], right[3];
 
-		up[0] = -sin(cam_theta) * sin(cam_phi);
-		up[1] = -cos(cam_phi);
-		up[2] = cos(cam_theta) * sin(cam_phi);
-		right[0] = cos(cam_theta);
+		up[0] = -sin(player.theta) * sin(player.phi);
+		up[1] = -cos(player.phi);
+		up[2] = cos(player.theta) * sin(player.phi);
+		right[0] = cos(player.theta);
 		right[1] = 0;
-		right[2] = sin(cam_theta);
+		right[2] = sin(player.theta);
 
-		cam_pan.x += (right[0] * dx + up[0] * dy) * 0.01;
-		cam_pan.y += up[1] * dy * 0.01;
-		cam_pan.z += (right[2] * dx + up[2] * dy) * 0.01;
+		player.pos.x += (right[0] * dx + up[0] * dy) * 0.01;
+		player.pos.y += up[1] * dy * 0.01;
+		player.pos.z += (right[2] * dx + up[2] * dy) * 0.01;
 	}
 	if(mouse_state[2]) {
 		cam_dist += dy * 0.01;

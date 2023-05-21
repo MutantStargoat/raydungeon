@@ -2,6 +2,8 @@
 #define GAME_H_
 
 #define GAME_CFG_FILE	"game.cfg"
+#define UPD_TSTEP		(1.0f / 60.0f)
+#define MAX_UPD			8
 
 enum {
 	GKEY_ESC	= 27,
