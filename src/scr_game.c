@@ -64,9 +64,9 @@ static int gstart(void)
 	if(load_level(lvl, "data/test.lvl") == -1) {
 		return -1;
 	}
-	player.pos.x = -lvl->sx * lvl->scale;
+	player.pos.x = lvl->sx * lvl->scale;
 	player.pos.y = 0;
-	player.pos.z = -lvl->sy * lvl->scale;
+	player.pos.z = lvl->sy * lvl->scale;
 
 	glEnable(GL_DEPTH_TEST);
 
@@ -91,22 +91,22 @@ static void gstop(void)
 	free_program(sdr);
 }
 
-#define KB_MOVE_SPEED	0.5f
+#define KB_MOVE_SPEED	0.1f
 
 static void update(void)
 {
 	if(inpstate & INP_MOVE_BITS) {
 		if(inpstate & INP_FWD_BIT) {
-			player.vel.z -= KB_MOVE_SPEED;
+			player.move.z -= KB_MOVE_SPEED;
 		}
 		if(inpstate & INP_BACK_BIT) {
-			player.vel.z += KB_MOVE_SPEED;
+			player.move.z += KB_MOVE_SPEED;
 		}
 		if(inpstate & INP_SRIGHT_BIT) {
-			player.vel.x += KB_MOVE_SPEED;
+			player.move.x += KB_MOVE_SPEED;
 		}
 		if(inpstate & INP_SLEFT_BIT) {
-			player.vel.x -= KB_MOVE_SPEED;
+			player.move.x -= KB_MOVE_SPEED;
 		}
 	}
 
@@ -121,6 +121,11 @@ static void gdisplay(void)
 	struct level_cell *cell;
 	static long last_upd;
 	static float upd_acc;
+
+	/* updating mouse input every frame feels more fluid, motion is limited
+	 * naturally by how fast the physical mouse can be moved
+	 */
+	update_player_mouse(&player);
 
 	upd_acc += (time_msec - last_upd) / 1000.0f;
 	for(i=0; i<MAX_UPD; i++) {
@@ -137,12 +142,8 @@ static void gdisplay(void)
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	cgm_mtranslation(view_mat, 0, 0, -cam_dist);
-	cgm_mprerotate_x(view_mat, player.phi);
-	cgm_mprerotate_y(view_mat, player.theta);
-	cgm_mpretranslate(view_mat, player.pos.x, player.pos.y, player.pos.z);
 	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixf(view_mat);
+	glLoadMatrixf(player.inv_matrix);
 
 	glUseProgram(sdr);
 
@@ -218,6 +219,19 @@ static void greshape(int x, int y)
 
 static void gkeyb(int key, int press)
 {
+	int i;
+
+	for(i=0; i<MAX_INPUTS; i++) {
+		if(inpmap[i].key == key) {
+			if(press) {
+				inpstate |= 1 << inpmap[i].inp;
+			} else {
+				inpstate &= ~(1 << inpmap[i].inp);
+			}
+			break;
+		}
+	}
+
 	if(press) {
 		switch(key) {
 		case '`':
@@ -234,37 +248,36 @@ static void gkeyb(int key, int press)
 
 static void gmouse(int bn, int press, int x, int y)
 {
+	int i;
+
+	for(i=0; i<MAX_INPUTS; i++) {
+		if(inpmap[i].mbn == bn) {
+			if(press) {
+				inpstate |= 1 << inpmap[i].inp;
+			} else {
+				inpstate &= ~(1 << inpmap[i].inp);
+			}
+			break;
+		}
+	}
 }
 
 static void gmotion(int x, int y)
 {
-	int dx = x - mouse_x;
-	int dy = y - mouse_y;
+	int dx, dy;
+
+	if(mouse_grabbed) {
+		dx = x - win_width / 2;
+		dy = y - win_height / 2;
+	} else {
+		dx = x - mouse_x;
+		dy = y - mouse_y;
+	}
 
 	if(!(dx | dy)) return;
 
-	if(mouse_state[0]) {
-		player.theta += dx * 0.02;
-		player.phi += dy * 0.02;
-		if(player.phi < -M_PI/2) player.phi = -M_PI/2;
-		if(player.phi > M_PI/2) player.phi = M_PI/2;
-	}
-	if(mouse_state[1]) {
-		float up[3], right[3];
-
-		up[0] = -sin(player.theta) * sin(player.phi);
-		up[1] = -cos(player.phi);
-		up[2] = cos(player.theta) * sin(player.phi);
-		right[0] = cos(player.theta);
-		right[1] = 0;
-		right[2] = sin(player.theta);
-
-		player.pos.x += (right[0] * dx + up[0] * dy) * 0.01;
-		player.pos.y += up[1] * dy * 0.01;
-		player.pos.z += (right[2] * dx + up[2] * dy) * 0.01;
-	}
-	if(mouse_state[2]) {
-		cam_dist += dy * 0.01;
-		if(cam_dist < 0) cam_dist = 0;
+	if(mouse_state[0] || mouse_state[1] || mouse_grabbed) {
+		player.mouselook.x -= dx;
+		player.mouselook.y += opt.inv_mouse_y ? dy : -dy;
 	}
 }
