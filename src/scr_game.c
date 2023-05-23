@@ -143,7 +143,10 @@ static void gdisplay(void)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixf(player.inv_matrix);
+	glLoadIdentity();
+	glTranslatef(0.0f, 0.0f, -cam_dist);
+	glMultMatrixf(player.inv_matrix);
+	glTranslatef(0.0f, -1.6f, 0.0f);
 
 	glUseProgram(sdr);
 
@@ -155,7 +158,7 @@ static void gdisplay(void)
 
 	glUseProgram(0);
 
-
+	/*
 	cell = lvl->cells;
 	glBegin(GL_QUADS);
 	glColor3f(1, 1, 1);
@@ -165,15 +168,16 @@ static void gdisplay(void)
 		for(j=0; j<lvl->xsz; j++) {
 			x = (float)j * lvl->scale;
 			if(cell->type) {
-				glVertex3f(x - 0.48 * lvl->scale, -1, y - 0.48 * lvl->scale);
-				glVertex3f(x + 0.48 * lvl->scale, -1, y - 0.48 * lvl->scale);
-				glVertex3f(x + 0.48 * lvl->scale, -1, y + 0.48 * lvl->scale);
-				glVertex3f(x - 0.48 * lvl->scale, -1, y + 0.48 * lvl->scale);
+				glVertex3f(x - 0.48 * lvl->scale, 0, y - 0.48 * lvl->scale);
+				glVertex3f(x + 0.48 * lvl->scale, 0, y - 0.48 * lvl->scale);
+				glVertex3f(x + 0.48 * lvl->scale, 0, y + 0.48 * lvl->scale);
+				glVertex3f(x - 0.48 * lvl->scale, 0, y + 0.48 * lvl->scale);
 			}
 			cell++;
 		}
 	}
 	glEnd();
+	*/
 
 	glViewport(0, 0, win_width, win_height);
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
@@ -279,5 +283,10 @@ static void gmotion(int x, int y)
 	if(mouse_state[0] || mouse_state[1] || mouse_grabbed) {
 		player.mouselook.x -= dx;
 		player.mouselook.y += opt.inv_mouse_y ? dy : -dy;
+	}
+
+	if(mouse_state[2]) {
+		cam_dist += dy * 0.1;
+		if(cam_dist < 0.0f) cam_dist = 0.0f;
 	}
 }

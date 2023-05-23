@@ -3,12 +3,13 @@ uniform mat4 matrix;
 uniform mat3 dirmatrix;
 
 #define DIST_THRES	1e-3
-#define MAX_ITER	128
-#define MAX_STEP	0.5
+#define MAX_ITER	256
+#define MAX_STEP	0.1
 
 vec3 raymarch(inout vec3 p, in vec3 dir, out float depth);
 vec3 shade(in vec3 p, in vec3 dir, in float dist, in float total_dist);
 vec3 backdrop(in vec3 dir);
+vec3 texgen(in vec3 p, in vec3 n);
 float eval_sdf(in vec3 p);
 vec3 eval_grad(in vec3 p, float dist);
 vec3 primray(in vec2 uv, out vec3 org);
@@ -62,7 +63,7 @@ vec3 shade(in vec3 p, in vec3 dir, in float dist, in float total_dist)
 {
     const vec3 kd = vec3(1.0, 0.3, 0.1);
     const vec3 ks = vec3(0.7, 0.7, 0.7);
-    const vec3 ldir = normalize(vec3(-1.0, 1.0, -1.5));
+    const vec3 ldir = normalize(vec3(-0.01, 0.5, 0.8));
     const vec3 vdir = vec3(0.0, 0.0, -1.0);
 
     vec3 diffuse = vec3(0.0, 0.0, 0.0);
@@ -75,7 +76,7 @@ vec3 shade(in vec3 p, in vec3 dir, in float dist, in float total_dist)
     float ndotl = max(dot(n, ldir), 0.0);
     float ndoth = max(dot(n, hdir), 0.0);
     
-    diffuse += kd * ndotl;
+    diffuse += texgen(p, n) * ndotl;
     specular += ks * pow(ndoth, 50.0);
     
     float fog = clamp(300.0 / (total_dist * total_dist), 0.0, 1.0);
@@ -88,9 +89,40 @@ vec3 backdrop(in vec3 dir)
 	return vec3(0.1, 0.1, 0.1);
 }
 
+float floortile(in vec3 p)
+{
+	float tile = max(mod(p.x, 1.0), mod(p.z, 1.0));
+	tile = min(smoothstep(0.05, 0.1, 1.0 - tile), smoothstep(0.9, 0.95, tile));
+
+	return tile;
+}
+
+vec3 texgen(in vec3 p, in vec3 n)
+{
+	if(p.y < 0.08) {
+		const vec3 tilecol = vec3(0.33, 0.3, 0.29);
+		const vec3 gapcol = vec3(0.1, 0.15, 0.05);
+		float tile = floortile(p);
+		return mix(tilecol, gapcol, tile);
+	}
+
+	return vec3(1.0, 1.0, 1.0);
+}
+
 float eval_sdf(in vec3 p)
 {
-	return eval_sdf_gen(p) + fbm(p, 4) * 0.05;
+	float fbmp = fbm(p, 4);
+
+	// walls
+	float d = eval_sdf_gen(p) + fbmp * 0.05;
+
+	// floor
+	d = min(d, p.y + floortile(p) * 0.01);
+
+	// ceiling
+	d = min(d, 3.0 - p.y + fbmp * 0.02);
+
+	return d;
 }
 
 #define DELTA	1e-4
@@ -113,7 +145,7 @@ vec3 primray(in vec2 uv, out vec3 org)
 	vec4 vdir = gl_ProjectionMatrixInverse * cp_near;
 	vec4 wdir = gl_ModelViewMatrixInverse * vec4(vdir.xyz, 0.0);
 
-	return normalize(wdir.xyz);
+	return wdir.xyz;
 }
 
 float boxdist(in vec3 p, in vec3 b)

@@ -130,6 +130,8 @@ void lvl_gen_rects(struct level *lvl)
 	}
 }
 
+#define WALL_H	3.0
+
 int save_level(const struct level *lvl, const char *fname)
 {
 	FILE *fp;
@@ -189,15 +191,15 @@ int save_level(const struct level *lvl, const char *fname)
 		for(i=0; i<num; i++) {
 			float cx = (rect->x - 0.5f + rect->w * 0.5f) * lvl->scale;
 			float cy = (rect->y - 0.5f + rect->h * 0.5f) * lvl->scale;
-			float rx = (rect->w + 0.1f) * lvl->scale * 0.5f;
-			float ry = (rect->h + 0.1f) * lvl->scale * 0.5f;
+			float rx = rect->w * lvl->scale * 0.5f;
+			float ry = rect->h * lvl->scale * 0.5f;
 
 			if(i == 0) {
-				fprintf(fp, "\tfloat d = boxdist(p - vec3(%f, 0.0, %f), vec3(%f, 1.0, %f));\n",
-						cx, cy, rx, ry);
+				fprintf(fp, "\tfloat d = boxdist(p - vec3(%f, %f, %f), vec3(%f, %f, %f));\n",
+						cx, WALL_H / 2.0f, cy, rx, WALL_H / 2.0, ry);
 			} else {
-				fprintf(fp, "\td = min(d, boxdist(p - vec3(%f, 0.0, %f), vec3(%f, 1.0, %f)));\n",
-						cx, cy, rx, ry);
+				fprintf(fp, "\td = min(d, boxdist(p - vec3(%f, %f, %f), vec3(%f, %f, %f)));\n",
+						cx, WALL_H / 2.0f, cy, rx, WALL_H / 2.0, ry);
 			}
 			rect++;
 		}

@@ -97,10 +97,12 @@ static void display(void)
 	glLineWidth(2);
 	rect = lvl->rects;
 	for(i=0; i<darr_size(lvl->rects); i++) {
-		float x = (rect->x - 0.55) * lvl->scale;
-		float y = (rect->y - 0.55) * lvl->scale;
-		float w = (rect->w + 0.1) * lvl->scale;
-		float h = (rect->h + 0.1) * lvl->scale;
+		float cx = (rect->x - 0.5f + rect->w * 0.5f) * lvl->scale;
+		float cy = (rect->y - 0.5f + rect->h * 0.5f) * lvl->scale;
+		float w = rect->w * lvl->scale;
+		float h = rect->h * lvl->scale;
+		float x = cx - 0.5 * w;
+		float y = cy - 0.5 * h;
 
 		glBegin(GL_LINE_LOOP);
 		glColor3ubv(rect->dbgcol);
